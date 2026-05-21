@@ -1,324 +1,15 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-
-// ─────────────────────────────────────────────────────────────────────────────
-// GOVERNING BODY RULES  — hardcoded, not editable via UI
-// athleteKey: unique identifier for conflict detection
-// board: "1m" | "3m" | "Plat"
-// ─────────────────────────────────────────────────────────────────────────────
-const GB = {
-  USA_DIVING: {
-    label:"USA Diving", abbr:"USD",
-    defaultSpd:35, defaultWarmup:15, defaultBuffer:5,
-    events:[
-      {tmplId:"usd-gD-1m",  label:"Group D Girls", board:"1m",  gender:"F", group:"D",    dives:5,  athleteKey:"D-F"    },
-      {tmplId:"usd-bD-1m",  label:"Group D Boys",  board:"1m",  gender:"M", group:"D",    dives:5,  athleteKey:"D-M"    },
-      {tmplId:"usd-gC-1m",  label:"Group C Girls", board:"1m",  gender:"F", group:"C",    dives:7,  athleteKey:"C-F"    },
-      {tmplId:"usd-bC-1m",  label:"Group C Boys",  board:"1m",  gender:"M", group:"C",    dives:7,  athleteKey:"C-M"    },
-      {tmplId:"usd-gC-3m",  label:"Group C Girls", board:"3m",  gender:"F", group:"C",    dives:7,  athleteKey:"C-F"    },
-      {tmplId:"usd-bC-3m",  label:"Group C Boys",  board:"3m",  gender:"M", group:"C",    dives:7,  athleteKey:"C-M"    },
-      {tmplId:"usd-gB-1m",  label:"Group B Girls", board:"1m",  gender:"F", group:"B",    dives:8,  athleteKey:"B-F"    },
-      {tmplId:"usd-bB-1m",  label:"Group B Boys",  board:"1m",  gender:"M", group:"B",    dives:8,  athleteKey:"B-M"    },
-      {tmplId:"usd-gB-3m",  label:"Group B Girls", board:"3m",  gender:"F", group:"B",    dives:8,  athleteKey:"B-F"    },
-      {tmplId:"usd-bB-3m",  label:"Group B Boys",  board:"3m",  gender:"M", group:"B",    dives:8,  athleteKey:"B-M"    },
-      {tmplId:"usd-gB-pl",  label:"Group B Girls", board:"Plat",gender:"F", group:"B",    dives:8,  athleteKey:"B-F"    },
-      {tmplId:"usd-bB-pl",  label:"Group B Boys",  board:"Plat",gender:"M", group:"B",    dives:8,  athleteKey:"B-M"    },
-      {tmplId:"usd-gA-1m",  label:"Group A Girls", board:"1m",  gender:"F", group:"A",    dives:10, athleteKey:"A-F"    },
-      {tmplId:"usd-bA-1m",  label:"Group A Boys",  board:"1m",  gender:"M", group:"A",    dives:10, athleteKey:"A-M"    },
-      {tmplId:"usd-gA-3m",  label:"Group A Girls", board:"3m",  gender:"F", group:"A",    dives:10, athleteKey:"A-F"    },
-      {tmplId:"usd-bA-3m",  label:"Group A Boys",  board:"3m",  gender:"M", group:"A",    dives:10, athleteKey:"A-M"    },
-      {tmplId:"usd-gA-pl",  label:"Group A Girls", board:"Plat",gender:"F", group:"A",    dives:10, athleteKey:"A-F"    },
-      {tmplId:"usd-bA-pl",  label:"Group A Boys",  board:"Plat",gender:"M", group:"A",    dives:10, athleteKey:"A-M"    },
-      {tmplId:"usd-gO-1m",  label:"Open Women",    board:"1m",  gender:"F", group:"Open", dives:11, athleteKey:"Open-F" },
-      {tmplId:"usd-bO-1m",  label:"Open Men",      board:"1m",  gender:"M", group:"Open", dives:11, athleteKey:"Open-M" },
-      {tmplId:"usd-gO-3m",  label:"Open Women",    board:"3m",  gender:"F", group:"Open", dives:11, athleteKey:"Open-F" },
-      {tmplId:"usd-bO-3m",  label:"Open Men",      board:"3m",  gender:"M", group:"Open", dives:11, athleteKey:"Open-M" },
-    ],
-  },
-  AAU:{
-    label:"AAU", abbr:"AAU",
-    defaultSpd:35, defaultWarmup:12, defaultBuffer:5,
-    events:[
-      {tmplId:"aau-g9u-1m",   label:"Girls 9&U",   board:"1m",  gender:"F", group:"9U",    dives:5,  athleteKey:"9U-F"    },
-      {tmplId:"aau-b9u-1m",   label:"Boys 9&U",    board:"1m",  gender:"M", group:"9U",    dives:5,  athleteKey:"9U-M"    },
-      {tmplId:"aau-g1011-1m", label:"Girls 10–11", board:"1m",  gender:"F", group:"10-11", dives:6,  athleteKey:"10-11-F" },
-      {tmplId:"aau-b1011-1m", label:"Boys 10–11",  board:"1m",  gender:"M", group:"10-11", dives:6,  athleteKey:"10-11-M" },
-      {tmplId:"aau-g1213-1m", label:"Girls 12–13", board:"1m",  gender:"F", group:"12-13", dives:7,  athleteKey:"12-13-F" },
-      {tmplId:"aau-b1213-1m", label:"Boys 12–13",  board:"1m",  gender:"M", group:"12-13", dives:7,  athleteKey:"12-13-M" },
-      {tmplId:"aau-g1415-1m", label:"Girls 14–15", board:"1m",  gender:"F", group:"14-15", dives:8,  athleteKey:"14-15-F" },
-      {tmplId:"aau-b1415-1m", label:"Boys 14–15",  board:"1m",  gender:"M", group:"14-15", dives:8,  athleteKey:"14-15-M" },
-      {tmplId:"aau-g1618-1m", label:"Girls 16–18", board:"1m",  gender:"F", group:"16-18", dives:9,  athleteKey:"16-18-F" },
-      {tmplId:"aau-b1618-1m", label:"Boys 16–18",  board:"1m",  gender:"M", group:"16-18", dives:10, athleteKey:"16-18-M" },
-      {tmplId:"aau-gO-1m",    label:"Open Women",  board:"1m",  gender:"F", group:"Open",  dives:10, athleteKey:"Open-F"  },
-      {tmplId:"aau-bO-1m",    label:"Open Men",    board:"1m",  gender:"M", group:"Open",  dives:11, athleteKey:"Open-M"  },
-      {tmplId:"aau-g1011-3m", label:"Girls 10–11", board:"3m",  gender:"F", group:"10-11", dives:5,  athleteKey:"10-11-F" },
-      {tmplId:"aau-b1011-3m", label:"Boys 10–11",  board:"3m",  gender:"M", group:"10-11", dives:5,  athleteKey:"10-11-M" },
-      {tmplId:"aau-g1213-3m", label:"Girls 12–13", board:"3m",  gender:"F", group:"12-13", dives:6,  athleteKey:"12-13-F" },
-      {tmplId:"aau-b1213-3m", label:"Boys 12–13",  board:"3m",  gender:"M", group:"12-13", dives:6,  athleteKey:"12-13-M" },
-      {tmplId:"aau-g1415-3m", label:"Girls 14–15", board:"3m",  gender:"F", group:"14-15", dives:7,  athleteKey:"14-15-F" },
-      {tmplId:"aau-b1415-3m", label:"Boys 14–15",  board:"3m",  gender:"M", group:"14-15", dives:7,  athleteKey:"14-15-M" },
-      {tmplId:"aau-g1618-3m", label:"Girls 16–18", board:"3m",  gender:"F", group:"16-18", dives:9,  athleteKey:"16-18-F" },
-      {tmplId:"aau-b1618-3m", label:"Boys 16–18",  board:"3m",  gender:"M", group:"16-18", dives:10, athleteKey:"16-18-M" },
-    ],
-  },
-  NFHS:{
-    label:"NFHS / High School", abbr:"NFHS",
-    defaultSpd:30, defaultWarmup:10, defaultBuffer:3,
-    events:[
-      {tmplId:"nfhs-gV-1m",  label:"Girls Varsity", board:"1m",  gender:"F", group:"Varsity", dives:11, athleteKey:"Varsity-F"},
-      {tmplId:"nfhs-bV-1m",  label:"Boys Varsity",  board:"1m",  gender:"M", group:"Varsity", dives:11, athleteKey:"Varsity-M"},
-      {tmplId:"nfhs-gV-3m",  label:"Girls Varsity", board:"3m",  gender:"F", group:"Varsity", dives:11, athleteKey:"Varsity-F"},
-      {tmplId:"nfhs-bV-3m",  label:"Boys Varsity",  board:"3m",  gender:"M", group:"Varsity", dives:11, athleteKey:"Varsity-M"},
-      {tmplId:"nfhs-gJV-1m", label:"Girls JV",      board:"1m",  gender:"F", group:"JV",      dives:6,  athleteKey:"JV-F"    },
-      {tmplId:"nfhs-bJV-1m", label:"Boys JV",       board:"1m",  gender:"M", group:"JV",      dives:6,  athleteKey:"JV-M"    },
-    ],
-  },
-  CUSTOM:{
-    label:"Custom", abbr:"CUS",
-    defaultSpd:35, defaultWarmup:15, defaultBuffer:5,
-    events:[],
-  },
-};
-
-// Board type compatibility: which event board types each physical board can hold
-const BOARD_TYPE_COMPAT = {
-  "1m":  ["1m"],
-  "3m":  ["3m"],
-  "Plat":["Plat"],
-};
+import { GB, BOARD_TYPE_COMPAT } from "./data/governingBodies";
+import { uid, toMin, toHHMM, fmt12, hm } from "./lib/time";
+import { evCompMin, boardDurMin, sessCalc, recalcMeet, detectConflicts, generateFromGB } from "./lib/scheduler";
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SCHEDULING ENGINE — pure functions
 // Architecture: Day → Session → Board → Event
 // ─────────────────────────────────────────────────────────────────────────────
 
-function uid(p="x"){ return `${p}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2,6)}`; }
 
-// Minutes since midnight
-function toMin(t){
-  if (typeof t === "number" && Number.isFinite(t)) return t;
-  if (!t) return 8 * 60;
 
-  const raw = String(t).trim().toUpperCase();
-
-  let m = raw.match(/^(\d{1,2}):(\d{2})\s*([AP]M)$/);
-  if (m) {
-    let h = Number(m[1]) % 12;
-    if (m[3] === "PM") h += 12;
-    return h * 60 + Number(m[2]);
-  }
-
-  m = raw.match(/^(\d{1,2}):(\d{2})$/);
-  if (m) return Number(m[1]) * 60 + Number(m[2]);
-
-  return 8 * 60;
-}
-
-// Minutes → "HH:MM" (24h internal)
-function toHHMM(n){ const s=((Math.round(n)%1440)+1440)%1440; return `${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`; }
-
-// "HH:MM" → "h:MM AM/PM"
-function fmt12(hhmm){
-  if(!hhmm) return "";
-  const [h,m]=hhmm.split(":").map(Number);
-  const ampm=h<12?"AM":"PM";
-  const h12=((h%12)||12);
-  return `${h12}:${String(m).padStart(2,"0")} ${ampm}`;
-}
-
-// Duration minutes → "Xh Ym"
-function hm(m){ return `${Math.floor(m/60)}h ${Math.round(m%60)}m`; }
-
-// Event competition time in minutes (board-aware: split boards halve the diver count)
-function evCompMin(ev, spd, boardSplit=false){
-  const effectiveDivers = boardSplit ? Math.ceil(ev.divers / 2) : ev.divers;
-  return (effectiveDivers * ev.dives * spd) / 60;
-}
-
-// Board duration: sum of all event durations on that board (round-robin interleaving = same total)
-function boardDurMin(board, spd){
-  if(!board.events || !board.events.length) return 0;
-  const isSplit = board.split;
-  return board.events.reduce((sum, ev) => sum + evCompMin(ev, spd, isSplit), 0);
-}
-
-// Session total:
-//   warmup + max(boardDuration across all boards) + buffer
-// Boards run simultaneously; session ends when slowest board finishes.
-function sessCalc(sess, globalSpd, globalBuf){
-  const spd = sess.secondsPerDive ?? globalSpd;
-  const buf = sess.bufferMinutes ?? globalBuf;
-  const warmupMin = sess.warmupMinutes ?? 0;
-  if(!sess.boards || !sess.boards.length) return {compMin:0, warmupMin, bufMin:buf, total:warmupMin+buf};
-  const boardDurs = sess.boards.map(b => boardDurMin(b, spd));
-  const compMin = Math.ceil(Math.max(...boardDurs, 0));
-  return {compMin, warmupMin, bufMin:buf, total:Math.ceil(compMin+warmupMin+buf)};
-}
-
-// Annotate full meet with computed timing (all times in 12h display)
-function recalcMeet(days, globalSpd, globalBuf){
-  return (days || []).map(day => {
-    const dayStartMin = toMin(day.startTime ?? "08:00");
-    let cur = dayStartMin;
-
-    const sessions = (day.sessions || []).map(sess => {
-      const spd = Number(sess.secondsPerDive ?? globalSpd ?? 35);
-      const warmupMin = Number(sess.warmupMinutes ?? 0);
-      const bufMin = Number(sess.bufferMinutes ?? globalBuf ?? 0);
-
-      const boardDurations = (sess.boards || []).map(board => {
-        return (board.events || []).reduce((sum, ev) => {
-          const divers = Number(ev.divers ?? 0);
-          const dives = Number(ev.dives ?? 0);
-          const boardSplit = !!board.split;
-          const effectiveDivers = boardSplit ? Math.ceil(divers / 2) : divers;
-          const evMin = (effectiveDivers * dives * spd) / 60;
-          return sum + (Number.isFinite(evMin) ? evMin : 0);
-        }, 0);
-      });
-
-      const compMin = boardDurations.length ? Math.ceil(Math.max(...boardDurations, 0)) : 0;
-      const sessStartMin = cur; 
-      const warmupEndMin = sessStartMin + warmupMin;
-      const compStartMin = warmupEndMin;
-      const sessionEndMin = compStartMin + compMin + bufMin;
-
-      const boards = (sess.boards || []).map((board, boardIdx) => {
-        const boardCompMin = Math.ceil(boardDurations[boardIdx] ?? 0);
-        const boardStartMin = compStartMin;
-        const boardEndMin = boardStartMin + boardCompMin;
-
-        const boardStart = toHHMM(boardStartMin);
-        const boardEnd = toHHMM(boardEndMin);
-
-        const events = (board.events || []).map(ev => {
-          const divers = Number(ev.divers ?? 0);
-          const dives = Number(ev.dives ?? 0);
-          const boardSplit = !!board.split;
-          const effectiveDivers = boardSplit ? Math.ceil(divers / 2) : divers;
-          const evMin = Math.ceil((effectiveDivers * dives * spd) / 60);
-
-          return {
-            ...ev,
-            _start: boardStart,
-            _end: boardEnd,
-            _min: evMin,
-            _start12: fmt12(boardStart),
-            _end12: fmt12(boardEnd),
-            _boardStart: boardStart,
-            _boardEnd: boardEnd,
-            _boardSplit: boardSplit,
-          };
-        });
-
-        return {
-          ...board,
-          events,
-          _start: boardStart,
-          _end: boardEnd,
-          _start12: fmt12(boardStart),
-          _end12: fmt12(boardEnd),
-          _durMin: boardCompMin,
-        };
-      });
-
-      const timedSess = {
-        ...sess,
-        boards,
-        _start: toHHMM(sessStartMin),
-        _end: toHHMM(sessionEndMin),
-        _start12: fmt12(toHHMM(sessStartMin)),
-        _end12: fmt12(toHHMM(sessionEndMin)),
-        _compStart: toHHMM(compStartMin),
-        _compStart12: fmt12(toHHMM(compStartMin)),
-        _dur: {
-          compMin,
-          warmupMin,
-          bufMin,
-          total: compMin + warmupMin + bufMin,
-        },
-        _warmupEnd12: fmt12(toHHMM(warmupEndMin)),
-      };
-
-      cur = sessionEndMin;
-      return timedSess;
-    });
-
-    const dayEndMin = sessions.length ? toMin(sessions[sessions.length - 1]._end) : dayStartMin;
-    const dayMin = sessions.reduce((s, se) => s + (Number(se._dur?.total) || 0), 0);
-
-    return {
-      ...day,
-      sessions,
-      _start: toHHMM(dayStartMin),
-      _end: toHHMM(dayEndMin),
-      _start12: fmt12(toHHMM(dayStartMin)),
-      _end12: fmt12(toHHMM(dayEndMin)),
-      _totalMin: dayMin,
-    };
-  });
-}
-
-// Conflict detection: same athleteKey >1x in one session (across all boards)
-function detectConflicts(days){
-  const out=[];
-  days.forEach((day,di) => {
-    day.sessions.forEach((sess,si) => {
-      const seen={};
-      const allEvs = (sess.boards||[]).flatMap(b => b.events||[]);
-      allEvs.forEach(ev => {
-        const k=ev.athleteKey; if(!k) return;
-        if(seen[k]) out.push({
-          dayIdx:di, sessIdx:si, sessId:sess.id,
-          msg:`Day ${di+1} · Session ${si+1}: "${ev.label} ${ev.board}" shares athlete group (${k}) with another event in this session.`
-        });
-        seen[k]=true;
-      });
-    });
-  });
-  return out;
-}
-
-// Generate default structure from GB: one session per board type, one board per session
-function generateFromGB(gbKey){
-  const gb = GB[gbKey];
-
-  const boardTypes = ["1m", "3m", "Plat"];
-
-  const boards = boardTypes
-    .map(boardType => {
-      const events = gb.events
-        .filter(ev => ev.board === boardType)
-        .map(ev => ({
-          ...ev,
-          id: uid("ev"),
-          divers: 10,
-          customLabel: null,
-        }));
-
-      return {
-        id: uid("brd"),
-        label: boardType === "Plat" ? "Platform" : `${boardType} Board`,
-        boardType,
-        split: false,
-        events,
-      };
-    })
-    .filter(board => board.events.length > 0);
-
-  return [{
-    id: uid("day"),
-    label: "Day 1",
-    startTime: "08:00",
-    sessions: [{
-      id: uid("sess"),
-      label: "Session 1",
-      secondsPerDive: gb.defaultSpd,
-      bufferMinutes: gb.defaultBuffer,
-      warmupMinutes: gb.defaultWarmup,
-      boards,
-    }],
-  }];
-}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SHARE
@@ -1495,7 +1186,7 @@ function DashboardView({timedDays, meet, conflicts}){
   const allEvs = allBoards.flatMap(b=>b.events||[]);
   const allSess = timedDays.flatMap(d=>d.sessions);
   const totalMin = timedDays.reduce((s,d)=>s+d._totalMin,0);
-  const gb = GB[meet.governingBody];
+  const gb = GB[meet.governingBody] || GB.USA_DIVING;
   const stats=[
     ["Days",timedDays.length],
     ["Sessions",allSess.length],
@@ -1574,7 +1265,7 @@ function DashboardView({timedDays, meet, conflicts}){
 // COMPONENT: Sidebar
 // ─────────────────────────────────────────────────────────────────────────────
 function Sidebar({meet, setMeet, onGenerate}){
-  const gb = GB[meet.governingBody];
+  const gb = GB[meet.governingBody] || GB.USA_DIVING;
   const up = (k,v) => setMeet(m=>({...m,[k]:v}));
   return(
     <div className="sidebar no-print">
@@ -1798,7 +1489,20 @@ export default function App(){
   const sharedMeet = shareParam ? dec(shareParam) : null;
   const isRO = !!sharedMeet;
 
-  const [meet, setMeet] = useState(sharedMeet || loadSaved() || DEFAULT);
+  function normalizeMeet(raw){
+    const base = raw && typeof raw === "object" ? raw : {};
+    const governingBody = GB[base.governingBody] ? base.governingBody : DEFAULT.governingBody;
+
+    return {
+      ...DEFAULT,
+      ...base,
+      governingBody,
+      days: Array.isArray(base.days) ? base.days : [],
+    };
+  }
+
+  const initialMeet = normalizeMeet(sharedMeet || loadSaved());
+  const [meet, setMeet] = useState(initialMeet);
   const [view, setView] = useState("kanban");
   const [showShare, setShowShare] = useState(false);
 
@@ -1815,7 +1519,7 @@ export default function App(){
       `This will clear the current schedule and rebuild it from ${GB[meet.governingBody].label} rules. Continue?`
     )) return;
 
-    const gb = GB[meet.governingBody];
+    const gb = GB[meet.governingBody] || GB.USA_DIVING;
 
     setMeet(m => ({
       ...m,
